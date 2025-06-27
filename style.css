@@ -1,0 +1,142 @@
+body {
+  font-family: Arial, sans-serif;
+  background-color: #121212;
+  color: #e0e0e0;
+  padding: 20px;
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  background: #1e1e1e;
+  padding: 25px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+h1 {
+  color: #2979ff;
+  margin-top: 0;
+}
+
+.subtitle {
+  color: #aaa;
+  margin-bottom: 20px;
+}
+
+textarea {
+  width: 100%;
+  height: 150px;
+  padding: 12px;
+  border-radius: 6px;
+  background: #2a2a2a;
+  color: #e0e0e0;
+  border: 1px solid #444;
+  resize: vertical;
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+button {
+  padding: 12px 24px;
+  border: none;
+  color: white;
+  font-weight: bold;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
+  flex: 1;
+}
+
+#analyzeBtn {
+  background-color: #2979ff;
+}
+
+#analyzeBtn:hover {
+  background-color: #1c68e0;
+}
+
+#pdfReportBtn {
+  background-color: #4CAF50;
+  display: none;
+}
+
+#pdfReportBtn:hover {
+  background-color: #3e8e41;
+}
+
+#pdfReportBtn.visible {
+  display: block;
+}
+
+.hidden {
+  display: none;
+}
+
+#result {
+  margin-top: 20px;
+  padding: 15px;
+  background: #252525;
+  border-radius: 6px;
+}
+
+#riskScore {
+  margin-top: 0;
+}
+
+#highlights {
+  padding-left: 20px;
+}
+
+#highlights li {
+  margin-bottom: 8px;
+}
+
+#tip {
+  padding: 12px;
+  border-radius: 6px;
+  background: #252525;
+  margin-top: 15px;
+  font-weight: bold;
+}
+
+#aiExplanation {
+  margin-top: 20px;
+  padding: 15px;
+  background: #252525;
+  border-radius: 6px;
+}
+
+footer {
+  margin-top: 30px;
+  text-align: center;
+  color: #777;
+  font-size: 14px;
+}
+
+.score-guide {
+  margin-top: 30px;
+  padding: 15px;
+  background: #252525;
+  border-radius: 6px;
+}
+
+.score-guide h3 {
+  margin-top: 0;
+}
+
+.score-guide ul {
+  padding-left: 20px;
+}
+
+.safe { color: #00e676; }
+.medium { color: #ffeb3b; }
+.high { color: #ff1744; }

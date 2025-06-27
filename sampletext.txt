@@ -1,0 +1,24 @@
+#First text
+Hello John,  
+
+I hope you're doing well. Just a reminder about our meeting tomorrow at 10 AM. Please bring your project updates.  
+
+Best regards,  
+Alex  
+
+#second text
+Dear Customer,  
+
+Your account has an unusual login attempt. Verify your identity within 24 hours to avoid suspension.  
+
+Click here to secure your account.  
+
+Sincerely,  
+Support Team  
+
+#Third text
+CONGRATULATIONS! 🎉  
+
+You've won a prize of 10 million TSH! Tuma hela kwenye namba hii: 0712345678 to claim your reward. Bonyeza hapa kuthibitisha!  
+
+Don’t miss this limited offer!  

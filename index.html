@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
 </head>
 <body class="dark-mode">
   <div class="container">
@@ -17,6 +18,9 @@
       <button id="analyzeBtn">Analyze</button>
       <button id="pdfReportBtn" class="hidden">Generate PDF Report</button>
     </div>
+    <div id="loading" class="hidden">
+      <p>Analyzing with AI... <span class="loading-dots"></span></p>
+    </div>
     <div id="result" class="hidden">
       <h2 id="riskScore"></h2>
       <ul id="highlights"></ul>
@@ -25,6 +29,11 @@
     <div id="aiExplanation" class="hidden">
       <h3>AI Explanation</h3>
       <p id="explanationText"></p>
+      <div id="mlResults" class="hidden">
+        <h4>Machine Learning Analysis</h4>
+        <p id="mlPrediction"></p>
+        <p id="mlConfidence"></p>
+      </div>
     </div>
     <footer>
       <p>For educational use. Created for Cybersecurity Classroom Awareness.</p>

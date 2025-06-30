@@ -2,50 +2,41 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Phishing Detector — Classroom Email Safety Tool</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Localized Phishing Detector</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.0/jspdf.plugin.autotable.min.js"></script>
 </head>
-<body class="dark-mode">
-  <div class="container">
-    <h1>Phishing Detector</h1>
-    <p class="subtitle">Paste an email message or link to check for phishing risk.</p>
-    <textarea id="emailInput" placeholder="Paste email text or suspicious link here..."></textarea>
-    <div class="button-group">
+<body>
+  <div id="container">
+    <h1>Localized Phishing Detector</h1>
+    <p>Paste a suspicious message or link below to analyze for phishing (with local patterns for Tanzania & East Africa):</p>
+    <textarea id="emailInput" rows="8" placeholder="Paste suspicious message or link here..."></textarea>
+    <div>
       <button id="analyzeBtn">Analyze</button>
-      <button id="pdfReportBtn" class="hidden">Generate PDF Report</button>
+      <button id="pdfReportBtn" class="hidden">Download PDF Report</button>
+      <span id="localIntelBadge" class="local-intel-badge" style="display:none;">Localized Intelligence</span>
     </div>
-    <div id="loading" class="hidden">
-      <p>Analyzing with AI... <span class="loading-dots"></span></p>
-    </div>
+    <div id="loading" class="hidden">Analyzing...</div>
     <div id="result" class="hidden">
-      <h2 id="riskScore"></h2>
+      <div id="riskScore"></div>
+      <div id="mlResults" class="hidden">
+        <div id="mlPrediction"></div>
+        <div id="mlConfidence"></div>
+      </div>
       <ul id="highlights"></ul>
       <div id="tip"></div>
     </div>
     <div id="aiExplanation" class="hidden">
-      <h3>AI Explanation</h3>
-      <p id="explanationText"></p>
-      <div id="mlResults" class="hidden">
-        <h4>Machine Learning Analysis</h4>
-        <p id="mlPrediction"></p>
-        <p id="mlConfidence"></p>
-      </div>
+      <b>How this works:</b> <span id="explanationText"></span>
+    </div>
+    <div id="scoreGuide">
+      <b>Score Guide:</b> <span class="safe">Low</span> | <span class="medium">Medium</span> | <span class="high">High</span>
     </div>
     <footer>
-      <p>For educational use. Created for Cybersecurity Classroom Awareness.</p>
+      <hr>
+      <small>Project: Localized Anti-Phishing for Tanzania & East Africa — <a href="#">RIDHIWANI A ISSA</a></small>
     </footer>
-    <section class="score-guide">
-      <h3>🎯 Understanding Risk Scores</h3>
-      <ul>
-        <li><strong>Score 0–2:</strong> <span class="safe">Low Risk</span> — Content seems safe. No suspicious patterns detected.</li>
-        <li><strong>Score 3–4:</strong> <span class="medium">Medium Risk</span> — Some common phishing phrases or urgency detected.</li>
-        <li><strong>Score 5+:</strong> <span class="high">High Risk</span> — Strong indicators of phishing, such as login links, urgency, or scam phrases.</li>
-      </ul>
-    </section>
   </div>
   <script src="script.js"></script>
 </body>

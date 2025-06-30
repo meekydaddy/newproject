@@ -1,208 +1,188 @@
 const { jsPDF } = window.jspdf;
 
 let currentAnalysis = null;
-let mlModel = null;
+let localPatterns = null; // will be loaded once at startup
 
-// Initialize TensorFlow.js model
-async function initModel() {
+const globalPatterns = [
+  { regex: /account (suspended|locked|disabled)/i, score: 3, reason: "Mentions account suspension/lock" },
+  { regex: /click here/i, score: 2, reason: "Urgent click request" },
+  { regex: /login here/i, score: 2, reason: "Direct login link" },
+  { regex: /update your account/i, score: 2, reason: "Prompt to update account" },
+  { regex: /verify your (identity|account)/i, score: 2, reason: "Verification scam" },
+  { regex: /24 hours/i, score: 1, reason: "Sense of urgency" },
+  { regex: /\.ru\b|\.xyz\b|\.pw\b/i, score: 2, reason: "Suspicious domain" },
+  { regex: /you(')?ve won/i, score: 2, reason: "Fake prize/lottery" },
+  { regex: /unusual login attempt/i, score: 1, reason: "Fake login alert" },
+  { regex: /download the attachment/i, score: 2, reason: "Malware delivery" }
+];
+
+const analyzeBtn = document.getElementById('analyzeBtn');
+const pdfBtn = document.getElementById('pdfReportBtn');
+const resultDiv = document.getElementById('result');
+const aiExplanationDiv = document.getElementById('aiExplanation');
+const loadingDiv = document.getElementById('loading');
+const localIntelBadge = document.getElementById('localIntelBadge');
+const emailInput = document.getElementById('emailInput');
+
+// Hide results when textarea is cleared
+emailInput.addEventListener('input', () => {
+  if (emailInput.value.trim() === '') {
+    resultDiv.classList.add('hidden');
+    aiExplanationDiv.classList.add('hidden');
+    pdfBtn.classList.add('hidden');
+    pdfBtn.classList.remove('visible');
+    localIntelBadge.style.display = 'none';
+    currentAnalysis = null;
+  }
+});
+
+// Load local patterns from JSON (only once, on page load)
+async function loadLocalPatternsOnce() {
+  if (localPatterns !== null) return;
   try {
-    // Create a simple model for text classification
-    const model = tf.sequential();
-    
-    // Add layers
-    model.add(tf.layers.dense({
-      units: 16,
-      activation: 'relu',
-      inputShape: [1000] // Vocabulary size
+    const response = await fetch('local_phishing_patterns.json');
+    const data = await response.json();
+    localPatterns = data.patterns.map(item => ({
+      regex: new RegExp(item.regex, "i"),
+      score: item.score,
+      reason: item.reason,
+      isLocal: true
     }));
-    model.add(tf.layers.dense({
-      units: 8,
-      activation: 'relu'
-    }));
-    model.add(tf.layers.dense({
-      units: 1,
-      activation: 'sigmoid'
-    }));
-    
-    // Compile the model
-    model.compile({
-      optimizer: 'adam',
-      loss: 'binaryCrossentropy',
-      metrics: ['accuracy']
-    });
-    
-    // Load pre-trained weights (in a real app, you would load actual trained weights)
-    // For demo purposes, we'll use random weights
-    mlModel = model;
-    
-    console.log("ML model initialized");
-  } catch (error) {
-    console.error("Error initializing ML model:", error);
+  } catch (e) {
+    localPatterns = [];
+    console.error("Failed to load local phishing patterns.", e);
   }
 }
 
-// Initialize model when page loads
-document.addEventListener('DOMContentLoaded', initModel);
+function getAllPatterns() {
+  return [
+    ...globalPatterns.map(p => ({ ...p, isLocal: false })),
+    ...(Array.isArray(localPatterns) ? localPatterns : [])
+  ];
+}
 
-document.getElementById('analyzeBtn').addEventListener('click', analyzeMessage);
-document.getElementById('pdfReportBtn').addEventListener('click', generatePDFReport);
+function scanMessageWithLocalPatterns(message) {
+  const allPatterns = getAllPatterns();
+  let totalScore = 0;
+  let matches = [];
+  let localMatches = [];
+  for (let i = 0; i < allPatterns.length; i++) {
+    const pattern = allPatterns[i];
+    if (pattern.regex.test(message)) {
+      totalScore += pattern.score;
+      matches.push({
+        reason: pattern.reason,
+        isLocal: pattern.isLocal
+      });
+      if (pattern.isLocal) localMatches.push(pattern.reason);
+    }
+  }
+  return { totalScore, matches, localMatches };
+}
 
-async function analyzeMessage() {
-  const input = document.getElementById('emailInput').value.trim();
+window.addEventListener('DOMContentLoaded', () => {
+  loadLocalPatternsOnce();
+});
+
+analyzeBtn.addEventListener('click', async () => {
+  const input = emailInput.value.trim();
   if (!input) {
     alert('Please paste an email message or link to analyze.');
     return;
   }
-  
-  // Show loading indicator
-  document.getElementById('loading').classList.remove('hidden');
-  document.getElementById('result').classList.add('hidden');
-  document.getElementById('aiExplanation').classList.add('hidden');
-  document.getElementById('pdfReportBtn').classList.add('hidden');
-  
-  try {
-    // Run both traditional and ML analysis
-    const regexAnalysis = scanMessage(input);
-    const mlAnalysis = await analyzeWithML(input);
-    
-    // Combine results
-    currentAnalysis = {
-      ...regexAnalysis,
-      mlPrediction: mlAnalysis.prediction,
-      mlConfidence: mlAnalysis.confidence
-    };
-    
-    // Adjust score based on ML prediction
-    if (mlAnalysis.prediction === 'phishing') {
-      currentAnalysis.totalScore += Math.ceil(mlAnalysis.confidence * 2); // Add 0-2 points based on confidence
-    }
-    
-    updateResultsUI(currentAnalysis);
-    
-    // Show results
-    document.getElementById('result').classList.remove('hidden');
-    document.getElementById('aiExplanation').classList.remove('hidden');
-    document.getElementById('pdfReportBtn').classList.remove('hidden');
-    document.getElementById('pdfReportBtn').classList.add('visible');
-    document.getElementById('mlResults').classList.remove('hidden');
-  } catch (error) {
-    console.error('Analysis error:', error);
-    alert('Error analyzing message. Please try again.');
-  } finally {
-    document.getElementById('loading').classList.add('hidden');
-  }
-}
+  loadingDiv.classList.remove('hidden');
+  resultDiv.classList.add('hidden');
+  aiExplanationDiv.classList.add('hidden');
+  pdfBtn.classList.add('hidden');
+  pdfBtn.classList.remove('visible');
+  localIntelBadge.style.display = 'none';
 
-// Simple text preprocessing for ML
-function preprocessText(text) {
-  // Convert to lowercase
-  text = text.toLowerCase();
-  
-  // Remove special characters
-  text = text.replace(/[^\w\s]/g, '');
-  
-  // Tokenize (split into words)
-  const tokens = text.split(/\s+/);
-  
-  // Simple feature vector (in a real app, you'd use word embeddings)
-  const features = new Array(1000).fill(0);
-  
-  // Create a simple bag-of-words representation
-  tokens.forEach(token => {
-    const hash = hashCode(token) % 1000;
-    features[hash] += 1;
-  });
-  
-  return features;
-}
+  if (localPatterns === null) await loadLocalPatternsOnce();
 
-// Helper function to create hash code
-function hashCode(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return hash;
-}
+  const { totalScore, matches, localMatches } = scanMessageWithLocalPatterns(input);
 
-// Analyze text with ML model
-async function analyzeWithML(text) {
-  if (!mlModel) {
-    throw new Error("ML model not initialized");
-  }
-  
-  // Preprocess the text
-  const features = preprocessText(text);
-  
-  // Convert to tensor
-  const inputTensor = tf.tensor2d([features]);
-  
-  // Make prediction
-  const prediction = await mlModel.predict(inputTensor).data();
-  
-  // Interpret results
-  const confidence = prediction[0];
-  const result = confidence > 0.5 ? 'phishing' : 'legitimate';
-  
-  return {
-    prediction: result,
-    confidence: Math.max(confidence, 1 - confidence) // Get the higher confidence value
+  // Any local scam match (score >= 5) is high risk, even if totalScore<5
+  const isLocalHigh = localMatches.length > 0;
+  let mlPrediction = (totalScore >= 5 || isLocalHigh) ? "phishing" : (totalScore >= 3 ? "suspicious" : "legitimate");
+  let mlConfidence = totalScore > 0 ? Math.min(1, 0.5 + totalScore * 0.1) : 0.3;
+  currentAnalysis = {
+    totalScore,
+    matches,
+    localMatches,
+    mlPrediction,
+    mlConfidence,
+    input
   };
-}
+
+  updateResultsUI(currentAnalysis);
+
+  loadingDiv.classList.add('hidden');
+  resultDiv.classList.remove('hidden');
+  aiExplanationDiv.classList.remove('hidden');
+  pdfBtn.classList.remove('hidden');
+  pdfBtn.classList.add('visible');
+  document.getElementById('mlResults').classList.remove('hidden');
+  localIntelBadge.style.display = (localMatches.length > 0) ? 'inline-block' : 'none';
+});
 
 function updateResultsUI(analysis) {
-  const riskLabel = getRiskLabel(analysis.totalScore);
-  const riskClass = getRiskClass(analysis.totalScore);
-  const recommendation = getRecommendation(analysis.totalScore);
+  const riskLabel = getRiskLabel(analysis);
+  const riskClass = getRiskClass(analysis);
+  const recommendation = getRecommendation(analysis);
 
-  document.getElementById('riskScore').innerHTML = 
+  document.getElementById('riskScore').innerHTML =
     `Risk Score: <span class="${riskClass}">${analysis.totalScore}</span> — ${riskLabel}`;
-  
-  document.getElementById('highlights').innerHTML = analysis.reasons.length > 0
-    ? analysis.reasons.map(r => `<li>${r}</li>`).join('')
+
+  document.getElementById('highlights').innerHTML = analysis.matches.length > 0
+    ? analysis.matches.map(r =>
+        `<li>${r.reason}${r.isLocal ? ' <span class="local-intel-badge">Local</span>' : ''}</li>`
+      ).join('')
     : '<li>No specific phishing patterns detected</li>';
 
   document.getElementById('tip').textContent = recommendation;
-  document.getElementById('explanationText').textContent = 
-    "This analysis is based on a combination of global and Tanzania-specific phishing patterns.";
+  document.getElementById('explanationText').textContent =
+    "This analysis is based on both global and localized phishing patterns.";
   
-  // Update ML results
   const mlPredictionElement = document.getElementById('mlPrediction');
   const mlConfidenceElement = document.getElementById('mlConfidence');
-  
-  mlPredictionElement.textContent = `ML Prediction: ${analysis.mlPrediction === 'phishing' ? 
-    'Phishing detected' : 'Likely legitimate'}`;
-  mlPredictionElement.className = analysis.mlPrediction === 'phishing' ? 'ml-phishing' : 'ml-safe';
-  
+
+  mlPredictionElement.textContent = `ML Prediction: ${
+    analysis.mlPrediction === 'phishing' ? 'Phishing detected' :
+    (analysis.mlPrediction === 'suspicious' ? 'Suspicious' : 'Likely legitimate')}`;
+  mlPredictionElement.className =
+    analysis.mlPrediction === 'phishing' ? 'ml-phishing' :
+    (analysis.mlPrediction === 'suspicious' ? 'ml-suspicious' : 'ml-safe');
   mlConfidenceElement.textContent = `Confidence: ${Math.round(analysis.mlConfidence * 100)}%`;
 }
 
-function getRiskLabel(score) {
-  if (score <= 2) return "🟢 Low Risk";
-  if (score <= 4) return "🟠 Medium Risk";
-  return "🔴 High Risk";
+function getRiskLabel(analysis) {
+  if (analysis.localMatches.length > 0 || analysis.totalScore >= 5) return "🔴 High Risk";
+  if (analysis.totalScore >= 3) return "🟠 Medium Risk";
+  return "🟢 Low Risk";
 }
 
-function getRiskClass(score) {
-  if (score <= 2) return "safe";
-  if (score <= 4) return "medium";
-  return "high";
+function getRiskClass(analysis) {
+  if (analysis.localMatches.length > 0 || analysis.totalScore >= 5) return "high";
+  if (analysis.totalScore >= 3) return "medium";
+  return "safe";
 }
 
-function getRecommendation(score) {
-  if (score > 4) return "⚠️ This message shows several signs of phishing. Do NOT click any links or download attachments.";
-  if (score > 2) return "⚠️ Be cautious. This message contains suspicious elements. Verify the sender before taking any action.";
+function getRecommendation(analysis) {
+  if (analysis.localMatches.length > 0 || analysis.totalScore >= 5)
+    return "⚠️ This message shows signs of a known phishing scam in your region. Do NOT respond, click any links, or send any information or money.";
+  if (analysis.totalScore >= 3)
+    return "⚠️ Be cautious. This message contains suspicious elements. Verify the sender before taking any action.";
   return "✅ Looks safe. No major red flags detected. Always remain vigilant for suspicious requests.";
 }
 
+pdfBtn.addEventListener('click', generatePDFReport);
+
 function generatePDFReport() {
   if (!currentAnalysis) return;
-
   try {
     const doc = new jsPDF();
     const timestamp = new Date();
 
-    // Title and metadata
     doc.setFontSize(18);
     doc.setTextColor(40);
     doc.text('Phishing Analysis Report', 105, 20, { align: 'center' });
@@ -211,48 +191,138 @@ function generatePDFReport() {
     doc.text(`Generated on: ${timestamp.toLocaleString()}`, 105, 30, { align: 'center' });
 
     // Risk assessment
+    let y = 45;
     doc.setFontSize(14);
-    doc.text('Risk Assessment:', 14, 45);
+    doc.setTextColor(40);
+    doc.text('Risk Assessment:', 14, y);
+    y += 10;
     doc.setFontSize(12);
-    doc.text(`Score: ${currentAnalysis.totalScore}`, 14, 55);
-    doc.text(`Level: ${getRiskLabel(currentAnalysis.totalScore).replace(/[🟢🟠🔴]/g, '')}`, 14, 65);
+    doc.text(`Score: ${currentAnalysis.totalScore}`, 14, y);
+    y += 10;
+    doc.text(`Level: ${getRiskLabel(currentAnalysis).replace(/[🟢🟠🔴]/g, '')}`, 14, y);
+    y += 15;
 
     // Analyzed content
     doc.setFontSize(14);
-    doc.text('Analyzed Content:', 14, 80);
+    doc.text('Analyzed Content:', 14, y);
+    y += 10;
     doc.setFontSize(10);
-    doc.text(doc.splitTextToSize(document.getElementById('emailInput').value, 180), 14, 90);
+    let contentLines = doc.splitTextToSize(currentAnalysis.input, 180);
+    doc.text(contentLines, 14, y);
+    y += contentLines.length * 5 + 5;
 
-    // Detected patterns (simple table)
+    // Detected patterns (table)
     doc.setFontSize(14);
-    doc.text('Detected Phishing Patterns:', 14, 110);
+    doc.text('Detected Phishing Patterns:', 14, y);
+    y += 5;
     doc.autoTable({
-      startY: 115,
-      head: [['Pattern Type', 'Description']],
-      body: currentAnalysis.reasons.length > 0 
-        ? currentAnalysis.reasons.map(r => [r.split(':')[0], r.split(':')[1] || r])
-        : [['None', 'No patterns detected']],
+      startY: y,
+      head: [['Pattern Type', 'Local?']],
+      body: currentAnalysis.matches.length > 0 
+        ? currentAnalysis.matches.map(r => [r.reason, r.isLocal ? 'Yes' : 'No'])
+        : [['None', '']],
       theme: 'grid',
       headStyles: { fillColor: [40, 40, 40] },
-      margin: { top: 10 }
+      margin: { left: 14, right: 14 },
+      styles: { fontSize: 10 }
     });
+    let afterTable = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : y + 30;
+
+    if (currentAnalysis.localMatches.length > 0) {
+      y = afterTable;
+      doc.setFontSize(14);
+      doc.setTextColor(184, 135, 0);
+      doc.text('⚠️ Localized Intelligence Triggered!', 14, y);
+      doc.setFontSize(10);
+      doc.setTextColor(20);
+      y += 8;
+      doc.text(doc.splitTextToSize(
+        "This message matched one or more local phishing patterns common in your country or language. Stay extra vigilant—these tactics are often used to target people in your region.",
+        180), 14, y);
+      y += 18;
+      doc.setFont("helvetica", "italic");
+      doc.text("Matched local patterns:", 14, y);
+      y += 8;
+      doc.setFont("helvetica", "normal");
+      currentAnalysis.localMatches.forEach(localMatch => {
+        doc.circle(16, y-2, 1, "F");
+        doc.text(localMatch, 20, y);
+        y += 6;
+      });
+      y += 6;
+    } else {
+      y = afterTable;
+    }
 
     // ML Analysis
-    let afterTable = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 145;
     doc.setFontSize(14);
-    doc.text('Machine Learning Analysis:', 14, afterTable);
+    doc.setTextColor(40);
+    doc.text('Machine Learning Analysis:', 14, y);
     doc.setFontSize(10);
-    doc.text(`Prediction: ${currentAnalysis.mlPrediction === 'phishing' ? 'Phishing' : 'Legitimate'}`, 14, afterTable + 10);
-    doc.text(`Confidence: ${Math.round(currentAnalysis.mlConfidence * 100)}%`, 14, afterTable + 20);
-    afterTable += 30;
+    y += 10;
+    doc.text(`Prediction: ${currentAnalysis.mlPrediction === 'phishing' ? 'Phishing' : (currentAnalysis.mlPrediction === 'suspicious' ? 'Suspicious' : 'Legitimate')}`, 14, y);
+    y += 10;
+    doc.text(`Confidence: ${Math.round(currentAnalysis.mlConfidence * 100)}%`, 14, y);
+    y += 15;
 
     // Recommendations
     doc.setFontSize(14);
-    doc.text('Recommendations:', 14, afterTable);
+    doc.text('Recommendations:', 14, y);
+    y += 8;
     doc.setFontSize(10);
-    doc.text(doc.splitTextToSize(getRecommendation(currentAnalysis.totalScore), 180), 14, afterTable + 10);
+    let recLines = doc.splitTextToSize(getRecommendation(currentAnalysis), 180);
+    doc.text(recLines, 14, y);
+    y += recLines.length * 5 + 8;
 
-    // Footer
+    if (y > 230) {
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setFontSize(14);
+    doc.setTextColor(40, 64, 128);
+    doc.text('Phishing Awareness', 14, y);
+    y += 8;
+    doc.setFontSize(10);
+    doc.setTextColor(20);
+    const awarenessText = [
+      "What is Phishing?",
+      "Phishing is a type of cyber-attack where attackers trick individuals into giving away sensitive information such as passwords, banking details, or personal data by pretending to be a trustworthy entity, often through fake emails, links, or messages.",
+      "",
+      "How Does Phishing Work?",
+      "- Attackers send emails or messages that look official, asking you to click links or provide info.",
+      "- These links often lead to fake websites designed to steal your information.",
+      "- Sometimes, phishing comes as SMS (smishing) or phone calls (vishing).",
+      "",
+      "Common Signs of Phishing:",
+      "- Urgent language: “Your account will be suspended, act now!”",
+      "- Requests for personal or financial information.",
+      "- Suspicious links or attachments.",
+      "- Poor grammar, spelling mistakes, or unfamiliar senders.",
+      "",
+      "Risks if You Fall for Phishing:",
+      "- Identity theft",
+      "- Financial loss",
+      "- Unauthorized access to your accounts",
+      "- Malware infection on your devices",
+      "",
+      "How to Stay Safe:",
+      "- Always verify the sender’s information.",
+      "- Don’t click on suspicious links or download unexpected attachments.",
+      "- Never share personal information via email or message.",
+      "- Use strong, unique passwords and enable two-factor authentication.",
+      "- Report phishing attempts to your IT department or email provider.",
+      "",
+      "Remember:",
+      "If something feels off, verify before you trust. Stay informed. Stay protected!"
+    ];
+    let awarenessLines = doc.splitTextToSize(awarenessText.join('\n'), 180);
+    if (y + awarenessLines.length * 5 > 280) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.text(awarenessLines, 14, y);
+
     doc.setFontSize(8);
     doc.setTextColor(150);
     doc.text('Generated by Phishing Detector - For educational purposes', 105, 285, { align: 'center' });
@@ -262,53 +332,10 @@ function generatePDFReport() {
 
     setTimeout(() => {
       alert('PDF report generated and downloaded!');
-    }, 500);
+    }, 300);
 
   } catch (error) {
     console.error('PDF generation error:', error);
     alert('Error generating PDF. Please try again.');
   }
-}
-
-// Phishing detection patterns and logic
-const regexPatterns = [
-  { regex: /you account is suspended/i, score: 2, reason: "Account Suspension: Mentions account suspension" },
-  { regex: /click here\s+here/i, score: 2, reason: "Urgent Action: Urgent click request" },
-  { regex: /\blogin here\b/i, score: 2, reason: "Login Request: Direct login link" },
-  { regex: /update\s+your\s+account/i, score: 2, reason: "Account Update: Account update prompt" },
-  { regex: /verify\s+your\s+identity/i, score: 2, reason: "Verification: Verification scam" },
-  { regex: /24\s+hours/i, score: 1, reason: "Urgency: Sense of urgency" },
-  { regex: /\.ru\b/i, score: 2, reason: "Suspicious Domain: .ru domain" },
-  { regex: /\.xyz\b/i, score: 2, reason: "Suspicious Domain: .xyz domain" },
-  { regex: /you(?:'|')?ve\s+won\s+a\s+prize/i, score: 2, reason: "Fake Prize: Fake lottery prize" },
-  { regex: /unusual\s+login\s+attempt/i, score: 1, reason: "Fake Alert: Fake login alert" },
-  { regex: /download\s+the\s+attachment/i, score: 2, reason: "Malware: Malware delivery" },
-  { regex: /\.pw\b/i, score: 2, reason: "Suspicious Domain: .pw domain" },
-  // Tanzanian-specific patterns
-  { regex: /tuma\s+kwenye\s+namba\s+hii.*ridhiwani\s+abdi\s+issa/i, score: 3, reason: "Mobile Money: Personalized mobile money scam" },
-  { regex: /nafasi\s+za\s+jeshi\s+zimetoka/i, score: 2, reason: "Fake Recruitment: Fake military recruitment" },
-  { regex: /mvuto\s+wa\s+kimapenzi|nyota|pete\s+ya\s+maajabu/i, score: 3, reason: "Miracle Cure: Miracle cure or charm scam" },
-  { regex: /tuma\s+hela\s+kwenye\s+namba\s+hii/i, score: 3, reason: "Mobile Money: Mobile money scam" },
-  { regex: /bonyeza\s+hapa\s+kuthibitisha/i, score: 2, reason: "Phishing Link: Swahili phishing link" },
-  { regex: /umeshinda\s+milioni\s+10.*tuma\s+pesa/i, score: 3, reason: "Fake Prize: Fake prize requiring payment" },
-  { regex: /pesa\s+zako\s+zipo\s+tayari.*link/i, score: 2, reason: "Scam Bait: Reward scam bait" },
-  { regex: /namba\s+ya\s+mawasiliano\s+ya\s+mganga/i, score: 3, reason: "Fake Healer: Fake healer ads" },
-  { regex: /akaunti\s+yako\s+imefungwa.*tuma\s+taarifa/i, score: 2, reason: "Account Fear: Account fear scam" },
-  { regex: /nyota\s+yako\s+inang'aa.*wasiliana\s+nasi/i, score: 2, reason: "Astrology Fraud: Astrology fraud" },
-  { regex: /nafasi\s+ya\s+kazi\s+TRA.*tuma\s+jina/i, score: 2, reason: "Fake Job: Fake government job offer" }
-];
-
-function scanMessage(message) {
-  let totalScore = 0;
-  let matches = [];
-  regexPatterns.forEach(pattern => {
-    if (pattern.regex.test(message)) {
-      totalScore += pattern.score;
-      matches.push(pattern.reason);
-    }
-  });
-  return {
-    totalScore,
-    reasons: matches
-  };
 }

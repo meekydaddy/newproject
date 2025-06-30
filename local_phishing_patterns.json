@@ -1,0 +1,94 @@
+{
+  "patterns": [
+    {
+      "regex": "akaunti yako.*mpesa.*(sitish|zuiw|fungw|imefungw|umefungw)",
+      "score": 5,
+      "reason": "Mobile money account suspension (Swahili)"
+    },
+    {
+      "regex": "tuma( |)namba ya siri|tuma( |)pin|tuma( |)password",
+      "score": 5,
+      "reason": "Request for PIN or password (Swahili)"
+    },
+    {
+      "regex": "nafasi za kazi.*(tra|tanapa|tanesco|polisi|serikali|ttcl|utumishi|postaz|nmb|crdb|bank|hospital)",
+      "score": 5,
+      "reason": "Fake government/NGO job recruitment (Swahili)"
+    },
+    {
+      "regex": "(bahati nasibu|vodacom|tigo|airtel|halotel|zantel).*umeshinda.*milioni",
+      "score": 5,
+      "reason": "Fake lottery or prize (Swahili)"
+    },
+    {
+      "regex": "umeshinda.*milioni|hongera.*umeshinda",
+      "score": 5,
+      "reason": "Fake lottery or prize notification (Swahili)"
+    },
+    {
+      "regex": "tuma hela ya usajili|tuma pesa ya ada|lipa ada ya ushindi",
+      "score": 5,
+      "reason": "Advance fee/registration fee scam (Swahili)"
+    },
+    {
+      "regex": "mpesa|tigopesa|airtel money|ezy pawa|halo pesa|tuma( |)pesa( |)kwa( |)namba",
+      "score": 5,
+      "reason": "Mobile money transfer scam (Swahili)"
+    },
+    {
+      "regex": "benki: kumekuwa na jaribio la kuingia|thibitisha taarifa zako|akaunti yako imefungwa|fungua akaunti yako",
+      "score": 5,
+      "reason": "Fake bank login alert (Swahili)"
+    },
+    {
+      "regex": "pete ya maajabu|mganga wa kienyeji|dawa ya biashara|kuvuta mpenzi|kupata kazi haraka|kuongeza pesa",
+      "score": 5,
+      "reason": "Witchdoctor/miracle cure scam (Swahili)"
+    },
+    {
+      "regex": "scholarship|ufadhili.*bure|fursa ya kusoma nje|fursa ya scholarship",
+      "score": 5,
+      "reason": "Fake scholarship/education offer (Swahili/English)"
+    },
+    {
+      "regex": "dha emergency|haraka sana|ndani ya masaa 24|usipofanya hivi leo|isipotokea utapoteza akaunti",
+      "score": 5,
+      "reason": "Urgency scam (Swahili)"
+    },
+    {
+      "regex": "(serikali|polisi|mahakama|magereza):.*lipia faini|tuma pesa ya dhamana|lipa faini kwa mpesa",
+      "score": 5,
+      "reason": "Fake government fine/bribe demand (Swahili)"
+    },
+    {
+      "regex": "tuma namba yako ya simu|tuma taarifa zako binafsi|tuma kitambulisho|tuma namba ya kitambulisho",
+      "score": 5,
+      "reason": "ID/phone number harvesting (Swahili)"
+    },
+    {
+      "regex": "bonyeza hapa kuthibitisha|thibitisha akaunti yako|fungua link hii|login hapa|click here to verify",
+      "score": 5,
+      "reason": "Suspicious link for verification/login (Swahili/English)"
+    },
+    {
+      "regex": "pata mkopo wa haraka|mkopo pasipo dhamana|bonyeza hapa kupata mkopo",
+      "score": 5,
+      "reason": "Loan scam (Swahili)"
+    },
+    {
+      "regex": "tuma pesa kwa namba hii|tuma pesa kwa jina hili|tuma pesa kupitia|tuma pesa kwenda",
+      "score": 5,
+      "reason": "Money transfer scam (Swahili)"
+    },
+    {
+      "regex": "umepokea fedha|umetumiwa pesa|bonyeza hapa kuona salio",
+      "score": 5,
+      "reason": "Fake mobile money notification (Swahili)"
+    },
+    {
+      "regex": "watu 10 wa kwanza|fowadi ujumbe huu|sambaza ujumbe huu|forward this message to",
+      "score": 5,
+      "reason": "Viral chain/forward scam (Swahili/English)"
+    }
+  ]
+}
